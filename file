@@ -1,0 +1,193 @@
+"""
+Greenhouse-Gas-Emissions-Forecasting-with-ARIMA-LSTM
+Synthetic monthly GHG emissions time series (>100 points).
+Produces ARIMA and LSTM forecasts, comparison plots, RMSE scores, and saves dataset to Excel.
+"""
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.callbacks import EarlyStopping
+import tensorflow as tf
+import os
+
+# -------------------------
+# Reproducibility & config
+# -------------------------
+np.random.seed(42)
+tf.random.set_seed(42)
+
+n_months = 240            # 240 monthly points (20 years) > 100
+forecast_horizon = 24     # months to forecast
+look_back = 12            # LSTM input window (months)
+
+# -------------------------
+# Generate synthetic data
+# -------------------------
+# Create a time index (monthly)
+dates = pd.date_range(start='2005-01-01', periods=n_months, freq='M')
+
+# Construct components:
+# - long-term trend (slowly increasing due to development)
+# - seasonal cycle (annual seasonality)
+# - random shocks (representing policy changes, economic events)
+trend = 0.02 * np.arange(n_months)             # slow linear increase
+seasonal = 2.5 * np.sin(2 * np.pi * (np.arange(n_months) % 12) / 12)
+policy_shocks = np.random.normal(0, 0.5, n_months)
+# occasional larger shocks
+for i in range(10):
+    idx = np.random.randint(0, n_months)
+    policy_shocks[idx: idx + 3] += np.random.choice([-3, 3]) * np.exp(-np.linspace(0, 1.5, 3))
+
+# Base emission level (e.g., million tonnes CO2e)
+base = 50
+emissions = base + trend + seasonal + policy_shocks + np.random.normal(0, 0.8, n_months)
+
+# Keep emissions positive
+emissions = np.maximum(emissions, 0.1)
+
+# Build DataFrame
+df = pd.DataFrame({
+    'date': dates,
+    'GHG_emissions': emissions
+})
+df.set_index('date', inplace=True)
+
+# Save synthetic dataset
+os.makedirs('output', exist_ok=True)
+df.to_excel('output/ghg_emissions_synthetic.xlsx')
+
+# -------------------------
+# Train / Test split
+# -------------------------
+train = df.iloc[:-forecast_horizon].copy()
+test = df.iloc[-forecast_horizon:].copy()
+
+# -------------------------
+# ARIMA modeling
+# -------------------------
+# We'll use a simple ARIMA(p,d,q). For synthetic data, (2,1,2) often works; users may tune it.
+arima_order = (2, 1, 2)
+arima_model = ARIMA(train['GHG_emissions'], order=arima_order)
+arima_res = arima_model.fit()
+print("ARIMA summary:")
+print(arima_res.summary())
+
+# Forecast with ARIMA
+arima_forecast = arima_res.forecast(steps=forecast_horizon)
+arima_forecast = pd.Series(arima_forecast, index=test.index)
+
+# -------------------------
+# Prepare data for LSTM
+# -------------------------
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled = scaler.fit_transform(train[['GHG_emissions']].values)
+
+def create_supervised(series, look_back):
+    X, y = [], []
+    for i in range(len(series) - look_back):
+        X.append(series[i:i + look_back, 0])
+        y.append(series[i + look_back, 0])
+    X = np.array(X)
+    y = np.array(y)
+    return X, y
+
+X_train, y_train = create_supervised(scaled, look_back)
+X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
+
+# LSTM model
+model = Sequential([
+    LSTM(64, input_shape=(look_back, 1), return_sequences=False),
+    Dense(16, activation='relu'),
+    Dense(1)
+])
+model.compile(optimizer='adam', loss='mse')
+
+es = EarlyStopping(monitor='loss', patience=10, restore_best_weights=True, verbose=0)
+history = model.fit(X_train, y_train, epochs=200, batch_size=16, verbose=0, callbacks=[es])
+
+# -------------------------
+# LSTM Rolling Forecast
+# -------------------------
+# To forecast horizon months, do a rolling prediction:
+last_window = scaled[-look_back:].reshape(1, look_back, 1)
+lstm_forecasts_scaled = []
+current_window = last_window.copy()
+
+for _ in range(forecast_horizon):
+    pred_scaled = model.predict(current_window, verbose=0)[0, 0]
+    lstm_forecasts_scaled.append(pred_scaled)
+    # slide window
+    current_window = np.roll(current_window, -1, axis=1)
+    current_window[0, -1, 0] = pred_scaled
+
+# Inverse scale
+lstm_forecasts = scaler.inverse_transform(np.array(lstm_forecasts_scaled).reshape(-1, 1)).flatten()
+lstm_forecast = pd.Series(lstm_forecasts, index=test.index)
+
+# -------------------------
+# Evaluate forecasts
+# -------------------------
+arima_rmse = sqrt(mean_squared_error(test['GHG_emissions'], arima_forecast))
+lstm_rmse = sqrt(mean_squared_error(test['GHG_emissions'], lstm_forecast))
+
+print(f"ARIMA RMSE: {arima_rmse:.3f}")
+print(f"LSTM RMSE:  {lstm_rmse:.3f}")
+
+# -------------------------
+# Plot results
+# -------------------------
+plt.figure(figsize=(12, 6))
+plt.plot(df.index, df['GHG_emissions'], label='Observed', linewidth=1)
+plt.plot(arima_forecast.index, arima_forecast.values, label=f'ARIMA Forecast (RMSE={arima_rmse:.3f})', linestyle='--')
+plt.plot(lstm_forecast.index, lstm_forecast.values, label=f'LSTM Forecast (RMSE={lstm_rmse:.3f})', linestyle='-.')
+plt.axvline(x=train.index[-1], color='gray', linestyle=':', label='Train/Test split')
+plt.title('GHG Emissions: Observed and Forecasts')
+plt.xlabel('Date')
+plt.ylabel('Emissions (unit)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('output/ghg_forecasts_comparison.png', dpi=150)
+plt.show()
+
+# Plot training loss for LSTM
+plt.figure(figsize=(8,4))
+plt.plot(history.history['loss'])
+plt.title('LSTM Training Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss (MSE)')
+plt.tight_layout()
+plt.savefig('output/lstm_training_loss.png', dpi=150)
+plt.show()
+
+# -------------------------
+# Save forecasts & summary
+# -------------------------
+results = pd.DataFrame({
+    'observed': df['GHG_emissions'],
+}).join(pd.DataFrame({
+    'arima_forecast': pd.concat([pd.Series([np.nan]*len(train.index), index=train.index), arima_forecast]),
+    'lstm_forecast' : pd.concat([pd.Series([np.nan]*len(train.index), index=train.index), lstm_forecast])
+}))
+
+results.to_excel('output/ghg_emissions_with_forecasts.xlsx')
+
+with open('output/summary.txt', 'w') as f:
+    f.write("Greenhouse Gas Emissions Forecasting (Synthetic)\n")
+    f.write(f"Data points: {n_months}\n")
+    f.write(f"Train size: {len(train)}\n")
+    f.write(f"Test size (forecast horizon): {len(test)}\n")
+    f.write(f"ARIMA order: {arima_order}\n")
+    f.write(f"ARIMA RMSE: {arima_rmse:.3f}\n")
+    f.write(f"LSTM look_back: {look_back}\n")
+    f.write(f"LSTM RMSE: {lstm_rmse:.3f}\n")
+
+print("Saved outputs in ./output/ (xlsx, png, summary.txt)")
+
+# End of script
