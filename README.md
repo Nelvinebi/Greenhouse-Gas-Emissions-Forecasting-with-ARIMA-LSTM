@@ -122,5 +122,9 @@ The Niger Delta faces **rising environmental concerns** due to industrial activi
 ## 👨‍💻 Author
 
 **Name:** Agbozu Ebingiye Nelvin
+
 **Email:** [nelvinebingiye@gmail.com](mailto:nelvinebingiye@gmail.com)
+
 **GitHub:** [Nelvinebi](https://github.com/Nelvinebi)
+
+**LinkedIn:** *https://www.linkedin.com/in/agbozu-ebi/
