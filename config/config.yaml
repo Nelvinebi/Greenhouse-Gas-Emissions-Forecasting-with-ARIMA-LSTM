@@ -1,0 +1,196 @@
+# Greenhouse Gas Emissions Forecasting Configuration
+# Version: 2.0 - Production Ready
+
+project:
+  name: "GHG Emissions Forecast"
+  version: "2.0.0"
+  author: "Data Science Team"
+  description: "Advanced time series forecasting with ARIMA, LSTM, and Hybrid models"
+
+# Data Configuration
+data:
+  raw_data_path: "data/raw/enhanced_ghg_emissions_dataset.csv"
+  processed_data_path: "data/processed"
+  target_column: "GHG_Emissions_MTCO2e"
+  date_column: "Date"
+  frequency: "M"
+  
+  train_start: "2011-01-01"
+  train_end: "2021-12-31"
+  test_start: "2022-01-01"
+  test_end: "2024-12-31"
+  
+  validation_method: "time_series_split"
+  n_splits: 5
+
+# Feature Engineering
+features:
+  lag_features: [1, 2, 3, 6, 12]
+  rolling_windows: [3, 6, 12]
+  cyclical_encoding: true
+  difference_order: [1, 12]
+  
+  exogenous:
+    - "Industrial_Production_Index"
+    - "Temperature_Anomaly_C"
+    - "Energy_Price_Index"
+  
+  selection_method: "correlation"
+  correlation_threshold: 0.1
+
+# ARIMA/SARIMA Configuration
+arima:
+  auto_arima:
+    seasonal: true
+    m: 12
+    start_p: 0
+    max_p: 5
+    start_q: 0
+    max_q: 5
+    d: null
+    start_P: 0
+    max_P: 2
+    start_Q: 0
+    max_Q: 2
+    D: null
+    trace: true
+    error_action: "ignore"
+    suppress_warnings: true
+    stepwise: true
+    information_criterion: "aic"
+    n_jobs: -1
+  
+  order: [1, 1, 1]
+  seasonal_order: [1, 1, 1, 12]
+  use_exogenous: true
+
+# LSTM Configuration
+lstm:
+  architecture:
+    type: "bidirectional"
+    layers:
+      - type: "LSTM"
+        units: 128
+        return_sequences: true
+        dropout: 0.2
+        recurrent_dropout: 0.1
+      - type: "LSTM"
+        units: 64
+        return_sequences: true
+        dropout: 0.2
+      - type: "LSTM"
+        units: 32
+        return_sequences: false
+        dropout: 0.2
+      - type: "Dense"
+        units: 16
+        activation: "relu"
+      - type: "Dense"
+        units: 1
+    
+  training:
+    sequence_length: 12
+    batch_size: 32
+    epochs: 200
+    validation_split: 0.2
+    shuffle: false
+    
+  optimizer:
+    name: "adam"
+    learning_rate: 0.001
+    clipnorm: 1.0
+    
+  loss: "huber"
+  metrics: ["mae", "mse"]
+  
+  callbacks:
+    early_stopping:
+      monitor: "val_loss"
+      patience: 20
+      restore_best_weights: true
+      min_delta: 0.0001
+    reduce_lr:
+      monitor: "val_loss"
+      factor: 0.5
+      patience: 10
+      min_lr: 0.00001
+    model_checkpoint:
+      save_best_only: true
+      monitor: "val_loss"
+
+# XGBoost Configuration
+xgboost:
+  params:
+    objective: "reg:squarederror"
+    n_estimators: 1000
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    early_stopping_rounds: 50
+  
+  lag_features: true
+  rolling_features: true
+
+# Prophet Configuration
+prophet:
+  yearly_seasonality: true
+  weekly_seasonality: false
+  daily_seasonality: false
+  changepoint_prior_scale: 0.05
+  seasonality_prior_scale: 10.0
+  holidays: null
+
+# Hybrid Model Configuration
+hybrid:
+  method: "residual_correction"
+  arima_weight: 0.4
+  lstm_weight: 0.6
+  residual_model: "LSTM"
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - "mae"
+    - "rmse"
+    - "mape"
+    - "smape"
+    - "r2"
+    - "mpe"
+  
+  cross_validation:
+    enabled: true
+    method: "expanding_window"
+    initial_train_size: 0.6
+    step: 12
+  
+  residual_tests:
+    - "ljung_box"
+    - "jarque_bera"
+    - "heteroscedasticity"
+
+# Visualization Configuration
+visualization:
+  style: "seaborn-v0_8-whitegrid"
+  figure_size: [12, 6]
+  dpi: 150
+  save_format: ["png", "pdf"]
+  
+  plots:
+    - "time_series_decomposition"
+    - "forecast_vs_actual"
+    - "residual_analysis"
+    - "feature_importance"
+    - "model_comparison"
+    - "prediction_intervals"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/training.log"
+  console: true
+
+# Reproducibility
+random_state: 42
