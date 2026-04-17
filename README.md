@@ -17,6 +17,16 @@
 
 </div>
 
+<div align="center">
+
+<h2>Live Demo</h2>
+
+<a href="">
+  <img src="https://img.shields.io/badge/Live%20Demo-Click%20for%20dashboard-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Live Demo"/>
+</a>
+</div>
+
+
 ---
 
 ## 📌 Problem
