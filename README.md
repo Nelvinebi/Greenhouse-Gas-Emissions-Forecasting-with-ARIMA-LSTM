@@ -1,4 +1,4 @@
-# 🌍 Greenhouse Gas Emissions Forecasting with ARIMA-LSTM-Hybrid
+# Greenhouse Gas Emissions Forecasting with ARIMA-LSTM-Hybrid
 
 <div align="center">
 
@@ -36,7 +36,7 @@ Climate change mitigation requires accurate forecasting of Greenhouse Gas (GHG) 
 - **Complex temporal patterns:** Emissions exhibit strong seasonality (heating/cooling cycles), long-term trends driven by decarbonisation policies, and structural breaks such as COVID-19 and energy crises
 - **Multiple driving factors:** Economic activity (Industrial Production Index), weather (Temperature Anomaly), and energy markets (Energy Price Index) all influence emissions nonlinearly
 - **Model selection uncertainty:** Statistical models (ARIMA) excel at capturing seasonality but miss nonlinearities; deep learning (LSTM) captures complex patterns but requires large datasets and lacks interpretability
-- **Uncertainty quantification:** Point forecasts are insufficient for risk management — decision-makers need prediction intervals and confidence bounds
+- **Uncertainty quantification:** Point forecasts are insufficient for risk management decision-makers need prediction intervals and confidence bounds
 
 There is a critical need for a **reproducible, modular, open-source forecasting system** that combines the strengths of statistical and machine learning approaches, with automated model selection, comprehensive evaluation, and production-ready deployment.
 
