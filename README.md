@@ -134,21 +134,21 @@ There is a critical need for a **reproducible, modular, open-source forecasting 
 
 ## 📸 Visualisations
 
-### 🔹 SARIMAX Forecast — Best Performing Model
+### 🔹 SARIMAX Forecast - Best Performing Model
 > 12-month out-of-sample forecast with 95% confidence intervals. MAPE: **2.44%**, RMSE: 2.92, R²: 0.62. SARIMAX(1,0,0)(2,0,1,12) with exogenous variables captures the seasonal cycle, long-term decline, and structural breaks effectively.
 
 ![SARIMAX Forecast](reports/figures/sarimax_forecast.png)
 
 ---
 
-### 🔹 LSTM Forecast — Deep Learning Comparison
+### 🔹 LSTM Forecast - Deep Learning Comparison
 > Bidirectional LSTM with Attention mechanism. Comparable accuracy at MAPE: **2.55%** but requires more data and training time. Less interpretable than SARIMAX for this 168-sample dataset size; demonstrates the data requirements of deep learning.
 
 ![LSTM Forecast](reports/figures/lstm_forecast.png)
 
 ---
 
-### 🔹 Hybrid Model — Residual Correction Approach
+### 🔹 Hybrid Model - Residual Correction Approach
 > SARIMAX for linear trend and seasonality + LSTM trained on residuals. Overfits on this dataset (MAPE: **3.50%**), confirming that hybrid residual approaches require datasets of 500+ observations to show performance gains over standalone models.
 
 ![Hybrid Forecast](reports/figures/hybrid_forecast.png)
